@@ -42,7 +42,6 @@ def get_first_paragraph_from_html(html: str) -> str:
 
     return first_p.get_text(strip=True) if isinstance(first_p, Tag) else ""
 
-
 def get_urls_from_html(html: str, base_url: str) -> list[str]:
     urls = []
     soup = BeautifulSoup(html, "html.parser")
@@ -103,6 +102,7 @@ def crawl_page(
 
     base_url_obj = urlparse(base_url)
     current_url_obj = urlparse(current_url)
+    #if the domain is not from the orginal base, we skip
     if current_url_obj.netloc != base_url_obj.netloc:
         return page_data
 
@@ -148,3 +148,4 @@ def safe_get_html(url: str) -> str | None:
     except Exception as e:
         print(f"{e}")
         return None
+

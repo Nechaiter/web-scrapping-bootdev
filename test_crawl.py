@@ -10,6 +10,8 @@ from crawl import (
 
 
 class TestCrawl(unittest.TestCase):
+
+    #Test normalize_url
     def test_normalize_url_protocol(self) -> None:
         input_url = "https://crawler-test.com/path"
         actual = normalize_url(input_url)
@@ -34,28 +36,7 @@ class TestCrawl(unittest.TestCase):
         expected = "crawler-test.com/path"
         self.assertEqual(actual, expected)
 
-    def test_get_urls_from_html_absolute(self) -> None:
-        input_url = "https://crawler-test.com"
-        input_body = '<html><body><a href="https://crawler-test.com"><span>Boot.dev</span></a></body></html>'
-        actual = get_urls_from_html(input_body, input_url)
-        expected = ["https://crawler-test.com"]
-        self.assertEqual(actual, expected)
-
-    def test_get_urls_from_html_relative(self) -> None:
-        input_url = "https://crawler-test.com"
-        input_body = (
-            '<html><body><a href="/path/one"><span>Boot.dev</span></a></body></html>'
-        )
-        actual = get_urls_from_html(input_body, input_url)
-        expected = ["https://crawler-test.com/path/one"]
-        self.assertEqual(actual, expected)
-
-    def test_get_urls_from_html_both(self) -> None:
-        input_url = "https://crawler-test.com"
-        input_body = '<html><body><a href="/path/one"><span>Boot.dev</span></a><a href="https://other.com/path/one"><span>Boot.dev</span></a></body></html>'
-        actual = get_urls_from_html(input_body, input_url)
-        expected = ["https://crawler-test.com/path/one", "https://other.com/path/one"]
-        self.assertEqual(actual, expected)
+    # test get_heading_from_html
 
     def test_get_heading_from_html_basic(self) -> None:
         input_body = "<html><body><h1>Test Title</h1></body></html>"
@@ -74,6 +55,8 @@ class TestCrawl(unittest.TestCase):
         actual = get_heading_from_html(input_body)
         expected = "Whitespace Title"
         self.assertEqual(actual, expected)
+
+    # test get first paragraph
 
     def test_get_first_paragraph_from_html_basic(self) -> None:
         input_body = "<html><body><p>This is the first paragraph.</p></body></html>"
@@ -98,6 +81,45 @@ class TestCrawl(unittest.TestCase):
         expected = ""
         self.assertEqual(actual, expected)
 
+    # Get url from html
+
+    def test_get_urls_from_html_absolute(self) -> None:
+        input_url = "https://crawler-test.com"
+        input_body = '<html><body><a href="https://crawler-test.com"><span>Boot.dev</span></a></body></html>'
+        actual = get_urls_from_html(input_body, input_url)
+        expected = ["https://crawler-test.com"]
+        self.assertEqual(actual, expected)
+
+    def test_get_urls_from_html_relative(self) -> None:
+        input_url = "https://crawler-test.com"
+        input_body = (
+            '<html><body><a href="/path/one"><span>Boot.dev</span></a></body></html>'
+        )
+        actual = get_urls_from_html(input_body, input_url)
+        expected = ["https://crawler-test.com/path/one"]
+        self.assertEqual(actual, expected)
+
+    def test_get_urls_from_html_upper_folder(self) -> None:
+        input_url = "https://crawler-test.com/path2"
+        input_body = (
+            '<html><body><a href="../one"><span>Boot.dev</span></a></body></html>'
+        )
+        actual = get_urls_from_html(input_body, input_url)
+        expected = ["https://crawler-test.com/one"]
+        self.assertEqual(actual, expected)
+
+
+
+
+    def test_get_urls_from_html_both(self) -> None:
+        input_url = "https://crawler-test.com"
+        input_body = '<html><body><a href="/path/one"><span>Boot.dev</span></a><a href="https://other.com/path/one"><span>Boot.dev</span></a></body></html>'
+        actual = get_urls_from_html(input_body, input_url)
+        expected = ["https://crawler-test.com/path/one", "https://other.com/path/one"]
+        self.assertEqual(actual, expected)
+
+    # test get image from html
+
     def test_get_images_from_html_absolute(self) -> None:
         input_url = "https://crawler-test.com"
         input_body = '<html><body><img src="https://crawler-test.com/logo.png" alt="Logo"></body></html>'
@@ -121,6 +143,8 @@ class TestCrawl(unittest.TestCase):
             "https://cdn.boot.dev/banner.jpg",
         ]
         self.assertEqual(actual, expected)
+
+    # test extract_page_data
 
     def test_extract_page_data_basic(self) -> None:
         input_url = "https://crawler-test.com"
