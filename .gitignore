@@ -8,3 +8,5 @@ wheels/
 
 # Virtual environments
 .venv
+async_code_flow.txt
+notes.txt

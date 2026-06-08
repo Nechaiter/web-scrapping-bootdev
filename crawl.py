@@ -9,6 +9,8 @@ from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup, Tag
 import requests
 
+import asyncio
+import aiohttp
 
 class PageData(TypedDict):
     url: str
@@ -148,4 +150,109 @@ def safe_get_html(url: str) -> str | None:
     except Exception as e:
         print(f"{e}")
         return None
+
+
+#  asyncio.Lock is use to prevent race conditions, remember that some I/O operations are truly parallel
+# if we are doing an async operation who writes a file, it doesnt matter if we use the await keyword, the function
+# gonna wait his logic, but other coroutines can open the file and write while the previus operation is still running
+
+
+# asyncio.Semaphore limits how many coroutines can be running
+
+#aiohttp integrates the http request with asyncio, we cant use request with asyncio / (or delegate the requests in another thread)
+
+class AsyncCrawler():
+    def __init__(self,base_url,max_concurrency) -> None:
+        self.base_url: str=base_url
+        self.base_domain: str = urlparse(base_url).netloc
+        self.page_data: dict[str, PageData] = {}
+        self.lock: asyncio.Lock = asyncio.Lock()
+        self.max_concurrency: int = max_concurrency # States how many coroutines will be
+        self.semaphore: asyncio.Semaphore = asyncio.Semaphore(max_concurrency) # Actually limits the coroutines
+        self.session: aiohttp.ClientSession
+        self.seen: set[str] = set()
+
+
+    # Methods to open and close an aiohttp client session
+
+    async def __aenter__(self):
+        self.session = aiohttp.ClientSession()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.session.close()
+
+    async def add_page_visit(self, normalized_url):
+
+        async with self.lock:
+            if normalized_url in self.seen:
+                return False
+            self.seen.add(normalized_url)
+            return True
+
+    async def get_html(self, url: str) -> str|None:
+        
+        try:
+            async with self.session.get(url) as response:
+                if response.status > 399:
+                    print(f"got HTTP error: {response.status} {response.reason}")
+                    return None
+
+                content_type = response.headers.get("content-type", "")
+                
+                if "text/html" not in content_type:
+                    print(f"got non-HTML response: {content_type}")
+                    return None
+
+                return await response.text()    
+        except Exception as e:
+            print(f"network error while fetching {url}: {e}")
+            return None;
+
+        
+    async def crawl_page(self,
+    current_url: str) -> None:
+
+        current_url_obj = urlparse(current_url)
+        #if the domain is not from the orginal base, we skip
+        if current_url_obj.netloc != self.base_domain:
+            return None
+
+        normalized_url=normalize_url(current_url)
+
+        if not await self.add_page_visit(normalized_url):
+            return None
+        
+        print(f"crawling {current_url}")
+
+        # Fetch restriccion to prevent ip bans
+        async with self.semaphore:
+            html = await self.get_html(current_url)
+        
+        
+        if html is None:
+            return None
+        next_urls = get_urls_from_html(html, self.base_url)
+
+        async with self.lock:
+            self.page_data[normalized_url] = extract_page_data(html, current_url)
+
+        
+        tasks=[]
+        for next_url in next_urls:
+            tasks.append(asyncio.create_task(self.crawl_page(next_url)))
+        
+        await asyncio.gather(*tasks)
+
+    async def crawl(self)->dict[str, PageData]:
+        await self.crawl_page(self.base_url)
+        return self.page_data
+    
+
+
+async def crawl_site_async(url:str,max_concurrency)->dict[str, PageData]:
+    async with AsyncCrawler(url,max_concurrency) as crawl:
+        return await crawl.crawl()
+    
+
 
